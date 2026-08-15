@@ -14,7 +14,7 @@ HVAC system control
 
 ## General Arrangements
 
-![alt text](ESP-HVAC.drawio.png)
+![alt text](images/ESP-HVAC.drawio.png)
 
 
 
