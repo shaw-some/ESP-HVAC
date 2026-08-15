@@ -16,3 +16,13 @@ HVAC system control
 
 ![alt text](https://github.com/shaw-some/ESP-HVAC/blob/0d76ee99e8d65721a4fad44f481017b24902613b/images/ESP-HVAC.drawio.png)
 
+## Controller Logic
+
++ Maintains four modes: IDLE (0), HEAT (1), COOL (2), FAN ONLY (3).
+Accepts per-zone heat/cool/fan-only calls (flags set by the thermostat climate entities).
++ Aligns dampers per-mode (heat/cool/fan) and pairs zone_1 + zone_1.1 so they always move together.
++ Starts heat/cool by turning on the fan and the appropriate call relay; stops by running a fan purge (configurable) then closing dampers.
++ Enforces safety and anti‑short‑cycling rules: plenum high/low hard limits, compressor/heat lockouts, minimum run/idle/fan times and queue window behavior for simultaneous heat+cool calls.
++ Resolves heat vs cool conflicts using (in order): recent-call window + plenum pivot (uses plenum temperature midpoint), otherwise prefer last active mode.
++ Exposes zones as Home Assistant thermostat (thermostat platform), converts room temps from °F → °C, and exposes numeric plenum limits as template numbers.
++ Hardware and IO: ESP32, LAN8720 Ethernet, PCF8574 I/O expanders for relays/inputs, 1‑Wire Dallas plenum sensor, and Home Assistant API + OTA.
