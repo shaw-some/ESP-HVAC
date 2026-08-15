@@ -1,0 +1,733 @@
+esphome:
+  name: upstairs
+  friendly_name: Upstairs
+
+esp32:
+  board: esp32dev
+
+web_server:
+  port: 80
+  version: 3
+
+ota:
+  - platform: esphome
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+i2c:
+  sda: 4
+  scl: 5
+  scan: true
+  id: bus_a
+  # (Optional safer pins)
+  # sda: 21
+  # scl: 22
+
+ethernet: 
+  type: LAN8720 
+  mdc_pin: GPIO23 
+  mdio_pin: GPIO18 
+  clk_mode: GPIO17_OUT         # <- replaced clk_mode with clk
+  phy_addr: 0
+
+pcf8574:
+  - id: 'pcf8574_hub_out_1'  # for output channel 1-8
+    address: 0x24
+
+  - id: 'pcf8574_hub_in_1'  # for input channel 1-8
+    address: 0x22
+
+# ------------------- OUTPUTS -------------------
+switch:
+  - platform: gpio
+    id: a8_light1
+    name: "a8-light1"
+    pin: { pcf8574: pcf8574_hub_out_1, number: 0, mode: OUTPUT, inverted: true }
+
+  - platform: gpio
+    id: heat_req
+    name: "heat_req"
+    pin: { pcf8574: pcf8574_hub_out_1, number: 1, mode: OUTPUT, inverted: true }
+
+  - platform: gpio
+    id: cool_req
+    name: "cool_req"
+    pin: { pcf8574: pcf8574_hub_out_1, number: 2, mode: OUTPUT, inverted: true }
+
+  - platform: gpio
+    id: fan_req
+    name: "fan_req"
+    pin: { pcf8574: pcf8574_hub_out_1, number: 3, mode: OUTPUT, inverted: true }
+
+  - platform: gpio
+    id: zone_3
+    name: "zone_3"
+    pin: { pcf8574: pcf8574_hub_out_1, number: 4, mode: OUTPUT, inverted: false }
+
+  - platform: gpio
+    id: zone_2
+    name: "zone_2"
+    pin: { pcf8574: pcf8574_hub_out_1, number: 5, mode: OUTPUT, inverted: false }
+
+  - platform: gpio
+    id: zone_1_1
+    name: "zone_1.1"
+    pin: { pcf8574: pcf8574_hub_out_1, number: 6, mode: OUTPUT, inverted: false }
+
+  - platform: gpio
+    id: zone_1
+    name: "zone_1"
+    pin: { pcf8574: pcf8574_hub_out_1, number: 7, mode: OUTPUT, inverted: false }
+
+# ------------------- INPUTS -------------------
+binary_sensor:
+  - platform: gpio
+    name: "a8-input1"
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 0
+      mode: INPUT
+      inverted: true
+
+  - platform: gpio
+    name: "a8-input2"
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 1
+      mode: INPUT
+      inverted: true
+
+  - platform: gpio
+    name: "a8-input3"
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 2
+      mode: INPUT
+      inverted: true
+
+  - platform: gpio
+    name: "a8-input4"
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 3
+      mode: INPUT
+      inverted: true
+
+  - platform: gpio
+    name: "a8-input5"
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 4
+      mode: INPUT
+      inverted: true
+
+  - platform: gpio
+    name: "a8-input6"
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 5
+      mode: INPUT
+      inverted: true
+
+  - platform: gpio
+    name: "a8-input7"
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 6
+      mode: INPUT
+      inverted: true
+
+  - platform: gpio
+    name: "a8-input8"
+    pin:
+      pcf8574: pcf8574_hub_in_1
+      number: 7
+      mode: INPUT
+      inverted: true
+
+  - platform: gpio
+    name: "a8-s3"
+    pin:
+      number: 32
+      inverted: true
+
+  - platform: gpio
+    name: "a8-s4"
+    pin:
+      number: 33
+      inverted: true
+
+# ------------------- 1-WIRE -------------------
+one_wire:
+  - platform: gpio
+    pin: GPIO14
+
+# ------------------- SENSORS -------------------
+sensor:
+  - platform: dallas_temp
+    id: plenum_temp
+    address: 0xfd00000037da8f28
+    name: "Plenum_Temp"
+
+  # Room temps from HA (convert °F -> °C here)
+  - platform: homeassistant
+    id: z1_room_temp
+    entity_id: sensor.lab_temp_temperature
+    name: "z1_room_temp"
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          if (isnan(x)) return NAN;
+          return (x - 32.0f) * 5.0f / 9.0f;
+
+  - platform: homeassistant
+    id: z2_room_temp
+    entity_id: sensor.guest_room_temp_temperature
+    name: "z2_room_temp"
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          if (isnan(x)) return NAN;
+          return (x - 32.0f) * 5.0f / 9.0f;
+
+  - platform: homeassistant
+    id: z3_room_temp
+    entity_id: sensor.nursery_temp_temperature
+    name: "z3_room_temp"
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 1
+    filters:
+      - lambda: |-
+          if (isnan(x)) return NAN;
+          return (x - 32.0f) * 5.0f / 9.0f;
+
+# ------------------- TUNEABLES -------------------
+substitutions:
+  MAX_PLENUM_C: "60"      # hard high limit (°C)
+  MIN_PLENUM_C: "0"       # freeze/low limit (°C) for cooling protection
+  TEMP_DIFFERENTIAL: "1.5"
+  COOL_MIN_OFF_S: "300"   # 5 min compressor lockout
+  HEAT_MIN_OFF_S: "120"   # 2 min heat lockout
+  MIN_RUN_S: "120"        # minimum run before allowing a mode change/stop
+  MIN_IDLE_S: "30"
+  MIN_COOL_RUN_S: "300"
+  MIN_HEAT_RUN_S: "120"
+  FAN_POST_PURGE_S: "90"  # fan purge after stop
+  QUEUE_WINDOW_S: "45"    # when heat+cool calls land within this window, decide by plenum
+  FAN_MIN_OFF_S: "60"     # blower min OFF before restarting fan-only
+  FAN_MIN_RUN_S: "60"     # blower minimum RUN in fan-only
+
+number:
+  - platform: template
+    id: plenum_high_limit
+    name: "Plenum High Limit (°C)"
+    optimistic: true
+    min_value: 30
+    max_value: 80
+    step: 1
+    initial_value: ${MAX_PLENUM_C}
+
+  - platform: template
+    id: plenum_low_limit
+    name: "Plenum Low Limit (°C)"
+    optimistic: true
+    min_value: -10
+    max_value: 20
+    step: 1
+    initial_value: ${MIN_PLENUM_C}
+
+# ------------------- GLOBALS -------------------
+globals:
+  - id: active_mode        # 0=IDLE, 1=HEAT, 2=COOL, 3=FAN ONLY
+    type: int
+    initial_value: '0'
+  - id: last_mode
+    type: int
+    initial_value: '0'
+  - id: run_start_epoch
+    type: uint32_t
+    initial_value: '0'
+  - id: last_heat_stop_epoch
+    type: uint32_t
+    initial_value: '0'
+  - id: last_cool_stop_epoch
+    type: uint32_t
+    initial_value: '0'
+  - id: last_heat_call_epoch
+    type: uint32_t
+    initial_value: '0'
+  - id: last_cool_call_epoch
+    type: uint32_t
+    initial_value: '0'
+  - id: is_purging
+    type: bool
+    initial_value: 'false'
+
+  # Call flags (set by the climates)
+  - id: z1_heat_call
+    type: bool
+    initial_value: 'false'
+  - id: z1_cool_call
+    type: bool
+    initial_value: 'false'
+  - id: z2_heat_call
+    type: bool
+    initial_value: 'false'
+  - id: z2_cool_call
+    type: bool
+    initial_value: 'false'
+  - id: z3_heat_call
+    type: bool
+    initial_value: 'false'
+  - id: z3_cool_call
+    type: bool
+    initial_value: 'false'
+
+  # NEW: Fan-only flags per zone
+  - id: z1_fan_only
+    type: bool
+    initial_value: 'false'
+  - id: z2_fan_only
+    type: bool
+    initial_value: 'false'
+  - id: z3_fan_only
+    type: bool
+    initial_value: 'false'
+
+# ------------------- CLIMATES -------------------
+climate:
+  - platform: thermostat
+    id: z1_climate
+    name: "Zone 1"
+    sensor: z1_room_temp
+    set_point_minimum_differential: ${TEMP_DIFFERENTIAL}
+    min_cooling_off_time: ${COOL_MIN_OFF_S}s
+    min_cooling_run_time: ${MIN_COOL_RUN_S}s
+    min_heating_off_time: ${HEAT_MIN_OFF_S}s
+    min_heating_run_time: ${MIN_HEAT_RUN_S}s
+    min_idle_time: ${MIN_IDLE_S}s
+    min_fanning_off_time: ${FAN_MIN_OFF_S}s
+    min_fanning_run_time: ${FAN_MIN_RUN_S}s
+
+
+    heat_action:
+      - lambda: 'id(z1_fan_only)=false; id(last_heat_call_epoch)=id(esptime).now().timestamp;'
+      - script.execute: z1_heat_call_on
+    cool_action:
+      - lambda: 'id(z1_fan_only)=false; id(last_cool_call_epoch)=id(esptime).now().timestamp;'
+      - script.execute: z1_cool_call_on
+    idle_action:
+      - script.execute: z1_calls_off
+    fan_only_action:
+      - lambda: 'id(z1_fan_only)=true;'
+      - script.execute: start_fan_only
+
+
+    # expose modes to HA
+    heat_cool_mode: []
+    heat_mode: []
+    cool_mode: []
+    fan_only_mode:
+      - lambda: 'id(z1_fan_only)=true;'
+      - script.execute: start_fan_only
+      - logger.log: "Zone 1 set to FAN ONLY"
+    off_mode:
+      - lambda: 'id(z1_fan_only)=false;'
+
+    default_preset: Home
+    preset:
+      - name: Home 
+        default_target_temperature_low: 20.0 
+        default_target_temperature_high: 21.66 
+        mode: HEAT_COOL 
+      - name: preset1 
+        default_target_temperature_low: 20.55 
+        default_target_temperature_high: 22.22 
+        mode: HEAT_COOL
+
+  - platform: thermostat
+    id: z2_climate
+    name: "Zone 2"
+    sensor: z2_room_temp
+    set_point_minimum_differential: ${TEMP_DIFFERENTIAL}
+    min_cooling_off_time: ${COOL_MIN_OFF_S}s
+    min_cooling_run_time: ${MIN_COOL_RUN_S}s
+    min_heating_off_time: ${HEAT_MIN_OFF_S}s
+    min_heating_run_time: ${MIN_HEAT_RUN_S}s
+    min_idle_time: ${MIN_IDLE_S}s
+    min_fanning_off_time: ${FAN_MIN_OFF_S}s
+    min_fanning_run_time: ${FAN_MIN_RUN_S}s
+
+    heat_action:
+      - lambda: 'id(z2_fan_only)=false; id(last_heat_call_epoch)=id(esptime).now().timestamp;'
+      - script.execute: z2_heat_call_on
+    cool_action:
+      - lambda: 'id(z2_fan_only)=false; id(last_cool_call_epoch)=id(esptime).now().timestamp;'
+      - script.execute: z2_cool_call_on
+    idle_action:
+      - script.execute: z2_calls_off
+    fan_only_action:
+      - lambda: 'id(z2_fan_only)=true;'
+      - script.execute: start_fan_only
+
+
+    heat_cool_mode: []
+    heat_mode: []
+    cool_mode: []
+    fan_only_mode:
+      - lambda: 'id(z2_fan_only)=true;'
+      - script.execute: start_fan_only
+      - logger.log: "Zone 2 set to FAN ONLY"
+    off_mode:
+      - lambda: 'id(z2_fan_only)=false;'
+
+    default_preset: Home
+    preset:
+      - name: Home 
+        default_target_temperature_low: 20.0 
+        default_target_temperature_high: 21.66 
+        mode: HEAT_COOL 
+      - name: preset1 
+        default_target_temperature_low: 20.55 
+        default_target_temperature_high: 22.22 
+        mode: HEAT_COOL
+
+  - platform: thermostat
+    id: z3_climate
+    name: "Zone 3"
+    sensor: z3_room_temp
+    set_point_minimum_differential: ${TEMP_DIFFERENTIAL}
+    min_cooling_off_time: ${COOL_MIN_OFF_S}s
+    min_cooling_run_time: ${MIN_COOL_RUN_S}s
+    min_heating_off_time: ${HEAT_MIN_OFF_S}s
+    min_heating_run_time: ${MIN_HEAT_RUN_S}s
+    min_idle_time: ${MIN_IDLE_S}s
+    min_fanning_off_time: ${FAN_MIN_OFF_S}s
+    min_fanning_run_time: ${FAN_MIN_RUN_S}s
+
+    heat_action:
+      - lambda: 'id(z3_fan_only)=false; id(last_heat_call_epoch)=id(esptime).now().timestamp;'
+      - script.execute: z3_heat_call_on
+    cool_action:
+      - lambda: 'id(z3_fan_only)=false; id(last_cool_call_epoch)=id(esptime).now().timestamp;'
+      - script.execute: z3_cool_call_on
+    idle_action:
+      - script.execute: z3_calls_off
+    fan_only_action:
+      - lambda: 'id(z3_fan_only)=true;'
+      - script.execute: start_fan_only
+
+      
+    heat_cool_mode: []
+    heat_mode: []
+    cool_mode: []
+    fan_only_mode:
+      - lambda: 'id(z3_fan_only)=true;'
+      - script.execute: start_fan_only
+      - logger.log: "Zone 3 set to FAN ONLY"
+    off_mode:
+      - lambda: 'id(z3_fan_only)=false;'
+
+    default_preset: Home
+    preset:
+      - name: Home 
+        default_target_temperature_low: 20.0 
+        default_target_temperature_high: 21.66 
+        mode: HEAT_COOL 
+      - name: preset1 
+        default_target_temperature_low: 20.55 
+        default_target_temperature_high: 22.22 
+        mode: HEAT_COOL
+
+# ------------------- SCRIPTS -------------------
+script:
+  # Zone-call scripts (used by climate actions)
+  - id: z1_heat_call_on
+    then: 
+      - lambda: 'id(z1_heat_call)=true; id(z1_cool_call)=false;'
+  - id: z1_cool_call_on
+    then:
+      - lambda: 'id(z1_cool_call)=true; id(z1_heat_call)=false;'
+  - id: z1_calls_off
+    then:
+      - lambda: 'id(z1_heat_call)=false; id(z1_cool_call)=false;'
+
+  - id: z2_heat_call_on
+    then: 
+      - lambda: 'id(z2_heat_call)=true; id(z2_cool_call)=false;'
+  - id: z2_cool_call_on
+    then:
+      - lambda: 'id(z2_cool_call)=true; id(z2_heat_call)=false;'
+  - id: z2_calls_off
+    then:
+      - lambda: 'id(z2_heat_call)=false; id(z2_cool_call)=false;'
+
+  - id: z3_heat_call_on
+    then: 
+      - lambda: 'id(z3_heat_call)=true; id(z3_cool_call)=false;'
+  - id: z3_cool_call_on
+    then:
+      - lambda: 'id(z3_cool_call)=true; id(z3_heat_call)=false;'
+  - id: z3_calls_off
+    then:
+      - lambda: 'id(z3_heat_call)=false; id(z3_cool_call)=false;'
+
+  # Damper helpers (pair zone_1 + zone_1.1 always)
+  - id: align_dampers_heat
+    then:
+      - lambda: |-
+          const bool z1 = id(z1_heat_call);
+          const bool z2 = id(z2_heat_call);
+          const bool z3 = id(z3_heat_call);
+
+          if (z1) {
+            if (!id(zone_1).state) id(zone_1).turn_on();
+            if (!id(zone_1_1).state) id(zone_1_1).turn_on();
+          } else {
+            if (id(zone_1).state) id(zone_1).turn_off();
+            if (id(zone_1_1).state) id(zone_1_1).turn_off();
+          }
+
+          if (z2) { if (!id(zone_2).state) id(zone_2).turn_on(); }
+          else    { if (id(zone_2).state)  id(zone_2).turn_off(); }
+
+          if (z3) { if (!id(zone_3).state) id(zone_3).turn_on(); }
+          else    { if (id(zone_3).state)  id(zone_3).turn_off(); }
+
+  - id: align_dampers_cool
+    then:
+      - lambda: |-
+          const bool z1 = id(z1_cool_call);
+          const bool z2 = id(z2_cool_call);
+          const bool z3 = id(z3_cool_call);
+
+          if (z1) {
+            if (!id(zone_1).state) id(zone_1).turn_on();
+            if (!id(zone_1_1).state) id(zone_1_1).turn_on();
+          } else {
+            if (id(zone_1).state) id(zone_1).turn_off();
+            if (id(zone_1_1).state) id(zone_1_1).turn_off();
+          }
+
+          if (z2) { if (!id(zone_2).state) id(zone_2).turn_on(); }
+          else    { if (id(zone_2).state)  id(zone_2).turn_off(); }
+
+          if (z3) { if (!id(zone_3).state) id(zone_3).turn_on(); }
+          else    { if (id(zone_3).state)  id(zone_3).turn_off(); }
+
+  # NEW: Align for FAN ONLY
+  - id: align_dampers_fan
+    then:
+      - lambda: |-
+          const bool f1 = id(z1_fan_only);
+          const bool f2 = id(z2_fan_only);
+          const bool f3 = id(z3_fan_only);
+
+          if (f1) {
+            if (!id(zone_1).state) id(zone_1).turn_on();
+            if (!id(zone_1_1).state) id(zone_1_1).turn_on();
+          } else {
+            if (id(zone_1).state) id(zone_1).turn_off();
+            if (id(zone_1_1).state) id(zone_1_1).turn_off();
+          }
+
+          if (f2) { if (!id(zone_2).state) id(zone_2).turn_on(); }
+          else    { if (id(zone_2).state)  id(zone_2).turn_off(); }
+
+          if (f3) { if (!id(zone_3).state) id(zone_3).turn_on(); }
+          else    { if (id(zone_3).state)  id(zone_3).turn_off(); }
+
+  - id: close_all_dampers
+    then:
+      - switch.turn_off: zone_1
+      - switch.turn_off: zone_1_1
+      - switch.turn_off: zone_2
+      - switch.turn_off: zone_3
+
+  - id: start_heat
+    then:
+      - script.execute: align_dampers_heat
+      - switch.turn_on: fan_req
+      - switch.turn_on: heat_req
+      - lambda: |-
+          id(active_mode) = 1;
+          id(last_mode) = 1;
+          id(run_start_epoch) = id(esptime).now().timestamp;
+
+  - id: start_cool
+    then:
+      - script.execute: align_dampers_cool
+      - switch.turn_on: fan_req
+      - switch.turn_on: cool_req
+      - lambda: |-
+          id(active_mode) = 2;
+          id(last_mode) = 2;
+          id(run_start_epoch) = id(esptime).now().timestamp;
+
+  # NEW: Start/Stop FAN ONLY
+  - id: start_fan_only
+    then:
+      - script.execute: align_dampers_fan
+      - switch.turn_on: fan_req
+      - lambda: |-
+          id(active_mode) = 3;
+          id(last_mode) = 3;
+
+  - id: stop_fan_only
+    then:
+      - switch.turn_off: fan_req
+      - script.execute: close_all_dampers
+      - lambda: 'id(active_mode) = 0;'
+
+  - id: stop_all_with_purge
+    mode: restart
+    then:
+      - lambda: |-
+          id(is_purging) = true;
+          id(active_mode) = 0;   // treat as idle during purge to avoid fights
+      - if:
+          condition:
+            switch.is_on: heat_req
+          then:
+            - lambda: 'id(last_heat_stop_epoch)=id(esptime).now().timestamp;'
+      - if:
+          condition:
+            switch.is_on: cool_req
+          then:
+            - lambda: 'id(last_cool_stop_epoch)=id(esptime).now().timestamp;'
+      - switch.turn_off: heat_req
+      - switch.turn_off: cool_req
+      - switch.turn_on: fan_req
+      - delay: !lambda "return (uint32_t)(${FAN_POST_PURGE_S})*1000;"
+      - switch.turn_off: fan_req
+      - script.execute: close_all_dampers
+      - lambda: 'id(is_purging)=false;'
+
+# ------------------- TIME & COORDINATOR -------------------
+time:
+  - platform: sntp
+    id: esptime
+
+interval:
+  - interval: 2s
+    then:
+      - lambda: |-
+          if (id(is_purging)) {
+            // Let purge finish without re-triggering anything
+            return;
+          }
+
+          const uint32_t now = id(esptime).now().timestamp;
+
+          // Current calls
+          bool any_heat = id(z1_heat_call) || id(z2_heat_call) || id(z3_heat_call);
+          bool any_cool = id(z1_cool_call) || id(z2_cool_call) || id(z3_cool_call);
+          bool any_fan_only = id(z1_fan_only) || id(z2_fan_only) || id(z3_fan_only);
+
+          // Plenum readings/limits
+          float plenum = id(plenum_temp).state;
+          float hi = id(plenum_high_limit).state;
+          float lo = id(plenum_low_limit).state;
+
+          // -------- Hard safeties --------
+          if (!isnan(plenum)) {
+            if (plenum >= hi) {
+              ESP_LOGW("thermo","PLENUM HIGH (%.1f >= %.1f): purge & stop.", plenum, hi);
+              id(stop_all_with_purge).execute();
+              return;
+            }
+            if (id(active_mode) == 2 && plenum <= lo) {
+              ESP_LOGW("thermo","PLENUM LOW (%.1f <= %.1f) during COOL: stop.", plenum, lo);
+              id(stop_all_with_purge).execute();
+              return;
+            }
+          }
+
+          // ----- FAN ONLY handling (no heat/cool calls, at least one fan-only zone) -----
+          if (!any_heat && !any_cool && any_fan_only) {
+            if (id(active_mode) != 3) {
+              id(start_fan_only).execute();
+              return;
+            } else {
+              id(align_dampers_fan).execute();  // keep dampers aligned while in fan-only
+              return;
+            }
+          }
+
+          // -------- No calls => stop (respect min run) --------
+          if (!any_heat && !any_cool) {
+            if (id(active_mode) != 0) {
+              if (now - id(run_start_epoch) >= ${MIN_RUN_S}) {
+                id(stop_all_with_purge).execute();
+              }
+            } else if (id(active_mode) == 3) {
+              id(stop_fan_only).execute();
+            }
+            return;
+          }
+
+          // -------- Conflict handling --------
+          bool both = any_heat && any_cool;
+          int desired = 0; // 1 HEAT, 2 COOL
+
+          if (!both) {
+            desired = any_heat ? 1 : 2;
+          } else {
+            // both called — use queue window + plenum pivot
+            bool within_queue = ( (now - id(last_heat_call_epoch)) <= ${QUEUE_WINDOW_S} ) &&
+                                ( (now - id(last_cool_call_epoch)) <= ${QUEUE_WINDOW_S} );
+            float mid = (lo + hi) / 2.0f;
+            if (within_queue && !isnan(plenum)) {
+              desired = (plenum >= mid) ? 2 : 1;   // warm plenum → COOL; cold → HEAT
+            } else {
+              desired = (id(last_mode) == 2) ? 2 : 1; // prefer last mode to reduce thrash
+            }
+          }
+
+          // -------- Lockouts --------
+          if (desired == 2) {
+            if (now - id(last_cool_stop_epoch) < ${COOL_MIN_OFF_S}) desired = 0;
+          } else if (desired == 1) {
+            if (now - id(last_heat_stop_epoch) < ${HEAT_MIN_OFF_S}) desired = 0;
+          }
+
+          // -------- Already in desired mode? keep dampers aligned (idempotent) --------
+          if (desired == id(active_mode)) {
+            if (desired == 1) {
+              id(align_dampers_heat).execute();
+            } else if (desired == 2) {
+              id(align_dampers_cool).execute();
+            }
+            return;
+          }
+
+          // -------- Switching modes (respect min run) --------
+          if (id(active_mode) != 0) {
+            if (now - id(run_start_epoch) < ${MIN_RUN_S}) return;
+            // If we were in fan-only, stop fan-only without purge; otherwise do purge
+            if (id(active_mode) == 3) {
+              id(stop_fan_only).execute();
+            } else {
+              id(stop_all_with_purge).execute();
+              return;
+            }
+          }
+
+          // -------- Start new mode --------
+          if (desired == 1) {
+            id(start_heat).execute();
+          } else if (desired == 2) {
+            id(start_cool).execute();
+          }
